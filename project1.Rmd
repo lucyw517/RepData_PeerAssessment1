@@ -1,0 +1,74 @@
+---
+title: "Project 1"
+author: "lucy"
+date: "April 5, 2016"
+output: html_document
+---
+##Loading & Preprocessing Data
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(url, destfile="./data.zip", method="curl")
+unzip("data.zip")
+activity <- read.csv("activity.csv",quote="\"")
+activity$date<-as.POSIXct(activity$date, "%Y-%M-%D")
+activity$steps<-as.numeric(activity$steps)
+head(activity)
+```
+----
+##What is mean total number of steps taken per day?
+-----
+```{r}
+totalstep<-aggregate(activity$steps, na.rm=T, by=list(activity$date), FUN=sum)
+totalstep<-subset(totalstep, totalstep$x!="0")
+g<-ggplot(totalstep, aes(x=x))
+g+geom_histogram(binwidth=1000)+xlab("steps per day")+ylab("frequency")
+mean_steps <- mean(totalstep$x, na.rm = TRUE)
+median_steps<-median(totalstep$x, na.rm=TRUE)
+mean_steps
+median_steps
+```
+-----
+## What is the average daily activity pattern?
+-----
+```{r}
+activity_n<-subset(activity, activity$steps!="NA")
+steps_ave<-aggregate(activity_n$steps, by=list(activity_n$interval), FUN=mean)
+g<-ggplot(steps_ave, aes(x=Group.1, y=x))
+g+geom_line()+xlab("interval")+ylab("mean steps")
+```
+----
+##Imputing missing values
+----
+```{r}
+activity.replaceNA<- activity %>% group_by(interval)  %>% mutate(steps= ifelse(is.na(steps), mean(steps, na.rm=TRUE), steps))
+head(activity.replaceNA)
+totalstep<-aggregate(activity.replaceNA$steps, na.rm=T, by=list(activity.replaceNA$date), FUN=sum)
+head(totalstep)
+sum(is.na(totalstep$steps))
+g<-ggplot(totalstep, aes(x))
+g+geom_histogram()+xlab("steps per day")+ylab("Frequency")
+mean(totalstep$x)
+median(totalstep$x)
+##The mean number of steps remains the same since we inserted the prior mean for the missing steps. The median becomes equal to the mean
+```
+-------
+##Are there differences in activity patterns between weekdays and weekends?
+```{r}
+library(dplyr)
+activitynew<-activity.replaceNA
+weekdays <- c("Monday", "Tuesday", "Wednesday", "Thursday", 
+              "Friday")
+activitynew$weekdate = as.factor(ifelse(is.element(weekdays(as.Date(activitynew$date)),weekdays), "Weekday", "Weekend"))
+head(activitynew)
+library(lattice)
+stepsbyinterval<- aggregate(steps ~ interval + weekdate, activitynew, mean)
+xyplot(stepsbyinterval$steps ~ stepsbyinterval$interval|stepsbyinterval$weekdate, main="Average steps per day by interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
+
+```
+
+
+
